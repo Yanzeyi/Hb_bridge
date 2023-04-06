@@ -4,6 +4,19 @@ from sklearn.cluster import KMeans
 from sklearn.ensemble import IsolationForest
 from math import ceil, floor
 
+def fill_point(data_list, error_index_list):
+    new_list = []
+    for data in data_list:
+        if data_list.index(data) in error_index_list:
+            if data_list.index(data) == 0:
+                new_list.append(data_list[1])
+            elif data_list.index(data) == len(data_list) - 1:
+                new_list.append(data_list[len(data_list) - 2])
+            else:
+                new_list.append((data_list[data_list.index(data) - 1] + data_list[data_list.index(data) + 1])/2)
+        else:
+            new_list.append(data)
+    return new_list
 
 class k_means():    
     def k_choose(self ,data_list):
@@ -42,7 +55,7 @@ class three_sigma():
         pass
 
     def three_sigma_(self, SLdata_list):
-        print(len(SLdata_list))
+        # print(len(SLdata_list))
         if np.std(SLdata_list) > np.mean(SLdata_list)/10:
             error_index = []
             for i in range(len(SLdata_list)):
@@ -125,6 +138,10 @@ if __name__ == "__main__":
     # b = box_plot()
     # b.box_plot_train(data_list)
 
-    def hiahia():
-        pass
-    print(hiahia.__name__)
+    # data_list = [1, 3, 5 ,6 ,7 ,8, 15]
+    # index_list = [0, 6]
+    # print(fill_point(data_list, index_list))
+
+    a = [1, 4, 5 ,6 ,7, 8, 9, 10]
+    b = [0, 4]
+    print(fill_point(a, b))

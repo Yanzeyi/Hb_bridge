@@ -3,7 +3,7 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 import numpy as np
-from error_detect import k_means, three_sigma, iostation_forest, box_plot
+from error_detect import k_means, three_sigma, iostation_forest, box_plot, fill_point
 # from sklearn.ensemble import IsolationForest
 
 
@@ -16,6 +16,7 @@ class ds_load():
         self.cols = len(self.ds.columns)
 
         self.SLData_dict = {}
+        self.SLMdata_dict = {}
 
 
     def sort_by_time_order(self):
@@ -39,16 +40,37 @@ class ds_load():
         return index_list
 
 
-    def get_SLdata(self, index_list):
+    def get_data_st_index(self, index_list, column_index):
         """
-        arg:index_list type list 索引
+        arg:index_list type list 数据的行索引列表 colunm_index type int 需要取得的数据的列索引
         return: SLdata_list type list 根据索引值得到数据列表
+        根据行索引列表以及列索引取得相应数据列表
         """
         SLdata_list = []
         for index in index_list:
-            SLdata_list.append(self.ds.iloc[index, 11])
+            SLdata_list.append(self.ds.iloc[index, column_index])
         return SLdata_list
     
+    
+    def df2dict_SLData_Date(self, country_id):
+        """
+        arg:country_id type bool China 0 Russsia 1
+        将索力数据转换成字典形式
+        example: {"SLS01": [1, 3, 5, 6 ,7], "SLS02":[2, 5, 7 ,8], ...}
+        """
+        self.SLData_dict = {}
+        self.SLMdata_dict = {}
+        SENSOR_PRIFIX = "SLS" if country_id == 0 else "SLX"
+        for i in range(1, 25, 1):
+            if i < 10 : sensor_id = SENSOR_PRIFIX + "0" + str(i)
+            elif 9 < i < 25 : sensor_id = SENSOR_PRIFIX + str(i)
+            # print(sensor_id)
+            index_list = self.get_SLdata_index(sensor_id)
+            SLdata_list = self.get_data_st_index(index_list, 11)
+            SLMDATE_list = self.get_data_st_index(index_list, 0)
+            self.SLData_dict[str(sensor_id)] = SLdata_list
+            self.SLMdata_dict[str(sensor_id)] = SLMDATE_list
+
 
     def show_pic(self, SLdata_list):
         """
@@ -59,21 +81,6 @@ class ds_load():
         plt.plot(x, SLdata_list)
         plt.show()
 
-    
-    def df2dict_SLData(self, country_id):
-        """
-        arg:country_id type bool China 0 Russsia 1
-        将索力数据转换成字典形式
-        example: {"SLS01": [1, 3, 5, 6 ,7], "SLS02":[2, 5, 7 ,8], ...}
-        """
-        SENSOR_PRIFIX = "SLS" if country_id == 0 else "SLX"
-        for i in range(1, 25, 1):
-            if i < 10 : sensor_id = SENSOR_PRIFIX + "0" + str(i)
-            elif 9 < i < 25 : sensor_id = SENSOR_PRIFIX + str(i)
-            print(sensor_id)
-            index_list = self.get_SLdata_index(sensor_id)
-            SLdata_list = self.get_SLdata(index_list)
-            self.SLData_dict[str(sensor_id)] = SLdata_list
 
 
     def detect_error_pic(self, SLdata_list, error_index_list):
@@ -101,10 +108,10 @@ if __name__ == "__main__":
 
 
     dl.sort_by_time_order() #按时间进行排序
-    dl.df2dict_SLData(0)
-    print(dl.SLData_dict)
-    # index_list = dl.get_SLdata_index("SLS03") #查找传感器数据的索引
-    # SLdata_list = dl.get_SLdata(index_list) #根据索引值得到数据
+    # dl.df2dict_SLData(0)
+    # print(dl.SLData_dict)
+    index_list = dl.get_SLdata_index("SLS03") #查找传感器数据的索引
+    SLdata_list = dl.get_data_st_index(index_list, 11) #根据索引值得到数据
 
 
     # dl.df2dict_SLData()
@@ -121,10 +128,18 @@ if __name__ == "__main__":
     # dl.detect_error_pic(SLdata_list, error_index_list)  #作图(异常值标红)
 
     ################################### 3sigma检测################################### 
-    # ts = three_sigma() #3sigma检测
-    # error_index_list_0 = ts.three_sigma_(SLdata_list)
+    ts = three_sigma() #3sigma检测
+    error_index_list_0 = ts.three_sigma_(SLdata_list)
+    dl.show_pic(SLdata_list)
+    print(error_index_list_0)
+    newSL = fill_point(SLdata_list, error_index_list_0)
+    dl.show_pic(newSL)
+    # print(SLdata_list)
+    # print(newSL)
+    # dl.show_pic(SLdata_list)
+    # dl.show_pic(newSL)
     # print(error_index_list_0)
-    # # dl.detect_error_pic(SLdata_list, error_index_list_0)
+    # dl.detect_error_pic(SLdata_list, error_index_list_0)
 
     ################################### isolation forest检测################################### 
     # # print(len(SLdata_list))

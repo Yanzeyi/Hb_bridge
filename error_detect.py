@@ -2,7 +2,9 @@ import numpy as np
 # from matplotlib import pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.ensemble import IsolationForest
+from sklearn import svm
 from math import ceil, floor
+
 
 def fill_point(data_list, error_index_list):
     new_list = []
@@ -35,6 +37,7 @@ class k_means():
         K_means_.fit(np.array(data_list).reshape(-1, 1))
         # print(K_means_.labels_)
         data_labels = list(K_means_.labels_)
+        # print(data_labels)
         # for i in range(len(data_labels)):
         #     if data_labels[i] == 1:
         #         print(i)
@@ -42,12 +45,16 @@ class k_means():
             label_cnt.append(0)
         for i in range(len(data_labels)):
             label_cnt[data_labels[i]] = label_cnt[data_labels[i]] + 1
-        # print(label_cnt)
         error_label = label_cnt.index(min(label_cnt))
-        # print(error_label)
-        for i in range(len(data_labels)):
-            if data_labels[i] == error_label: error_index.append(i)
-        return error_index
+        if label_cnt[error_label] > label_cnt[1 - error_label] * 0.2:
+            return []
+        else:
+            # print(label_cnt)
+            error_label = label_cnt.index(min(label_cnt))
+            # print(error_label)
+            for i in range(len(data_labels)):
+                if data_labels[i] == error_label: error_index.append(i)
+            return error_index
 
 
 class three_sigma():
@@ -130,7 +137,16 @@ class box_plot():
         left_diff = abs(number - ceil(number))
         right_diff = abs(floor(number) - number)
         return ceil(number) if left_diff <= right_diff else floor(number)
-
+    
+class svm_():
+    @return_index
+    def svm_train_(self, SLdata_list):
+        clf = svm.OneClassSVM(nu=0.001, kernel="rbf", gamma=0.0001)
+        clf.fit(np.array(SLdata_list).reshape(-1, 1))
+        error_label = clf.predict(np.array(SLdata_list).reshape(-1, 1))
+        return error_label
+        # print(error_label)
+        # dl.detect_error_pic(SLdata_list, error_label)
 
 if __name__ == "__main__":
     pass

@@ -2,8 +2,9 @@ import pandas as pd
 from datetime import datetime
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
+from sklearn import svm
 import numpy as np
-from error_detect import k_means, three_sigma, iostation_forest, box_plot, fill_point
+from error_detect import k_means, three_sigma, iostation_forest, box_plot, fill_point, svm_
 # from sklearn.ensemble import IsolationForest
 
 
@@ -110,7 +111,7 @@ if __name__ == "__main__":
     dl.sort_by_time_order() #按时间进行排序
     # dl.df2dict_SLData(0)
     # print(dl.SLData_dict)
-    index_list = dl.get_SLdata_index("SLS03") #查找传感器数据的索引
+    index_list = dl.get_SLdata_index("SLS01") #查找传感器数据的索引
     SLdata_list = dl.get_data_st_index(index_list, 11) #根据索引值得到数据
 
 
@@ -123,24 +124,17 @@ if __name__ == "__main__":
     # print(error_list)
 
     ################################### kmeans检测################################### 
-    # km = k_means()  #kmeans检测
-    # error_index_list = km.k_means_train(2, SLdata_list) #得到异常值索引
-    # dl.detect_error_pic(SLdata_list, error_index_list)  #作图(异常值标红)
+    km = k_means()  #kmeans检测
+    error_index_list = km.k_means_train(2, SLdata_list) #得到异常值索引
+    dl.detect_error_pic(SLdata_list, error_index_list)  #作图(异常值标红)
 
     ################################### 3sigma检测################################### 
-    ts = three_sigma() #3sigma检测
-    error_index_list_0 = ts.three_sigma_(SLdata_list)
-    dl.show_pic(SLdata_list)
-    print(error_index_list_0)
-    newSL = fill_point(SLdata_list, error_index_list_0)
-    dl.show_pic(newSL)
-    # print(SLdata_list)
-    # print(newSL)
+    # ts = three_sigma() #3sigma检测
+    # error_index_list_0 = ts.three_sigma_(SLdata_list)
     # dl.show_pic(SLdata_list)
-    # dl.show_pic(newSL)
     # print(error_index_list_0)
-    # dl.detect_error_pic(SLdata_list, error_index_list_0)
-
+    # newSL = fill_point(SLdata_list, error_index_list_0)
+    # dl.show_pic(newSL)
     ################################### isolation forest检测################################### 
     # # print(len(SLdata_list))
     # isofor = iostation_forest()
@@ -152,6 +146,18 @@ if __name__ == "__main__":
     # error_index_list1 = bp.box_plot_train(SLdata_list)
     # # print(error_index_list1)
     # dl.detect_error_pic(SLdata_list, error_index_list1)
+    ################################### one class svm检测################################### 
+    # svm_test = svm_()
+    # error_index = svm_test.svm_train_(SLdata_list)
+    # dl.detect_error_pic(SLdata_list, error_index)
+    # @return_index
+    # def svm_train_(SLdata_list):
+    #     clf = svm.OneClassSVM(nu=0.1, kernel="rbf", gamma=0.005)
+    #     clf.fit(np.array(SLdata_list).reshape(-1, 1))
+    #     error_label = clf.predict(np.array(SLdata_list).reshape(-1, 1))
+    #     # print(error_label)
+    #     dl.detect_error_pic(SLdata_list, error_label)
+
 
     # # x = range(len(SLdata_list))
     # # plt.plot(x, SLdata_list)

@@ -40,7 +40,8 @@ if __name__ == "__main__":
                     row_cnt = j + 1
                     if row_cnt <= dl_row_len - 1:
                         while type(dl.iloc[row_cnt, i]) == datetime:
-
+                            date = dl.iloc[row_cnt, i]
+                            # date.
                             outlier_Mdate_list.append(dl.iloc[row_cnt, i])
                             outlier_SLdata_list.append(dl.iloc[row_cnt, i + 1]) 
                             row_cnt += 1

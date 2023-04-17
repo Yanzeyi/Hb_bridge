@@ -4,6 +4,35 @@ from sklearn.cluster import KMeans
 from sklearn.ensemble import IsolationForest
 from sklearn import svm
 from math import ceil, floor
+from outlier_dict import outlier_dict
+import datetime
+
+
+class detect_error(object):
+    def get_accuracy(self, SLdata_list):
+        pass
+
+    def get_false_alarm(self, SLdata_list, SLMdate_list, error_index_list, month, senor_id):
+        false_alarm_cnt = 0
+        true_cnt = 0
+        new_outlier_list = []
+        # new_SLdata_list = []
+        for data in outlier_dict[month][senor_id]["SLdata"]:
+            new_outlier_list.append(int(data))
+        for error_index in error_index_list:
+            if int(SLdata_list[error_index]) in new_outlier_list:
+               dict_index = new_outlier_list.index(int(SLdata_list[error_index]))
+               
+               if SLMdate_list[error_index].month == outlier_dict[month][senor_id]["Mdate"][dict_index].month and\
+                  SLMdate_list[error_index].day == outlier_dict[month][senor_id]["Mdate"][dict_index].day:
+                    true_cnt += 1
+                    # print(SLdata_list[error_index], SLMdate_list[error_index])
+            else:
+                false_alarm_cnt += 1
+        print(outlier_dict[month][senor_id]["SLdata"], outlier_dict[month][senor_id]["Mdate"])
+        # return false_alarm_cnt/len(outlier_dict[month][senor_id]["SLdata"])
+        return true_cnt, false_alarm_cnt, len(outlier_dict[month][senor_id]["SLdata"]) - true_cnt
+
 
 
 def fill_point(data_list, error_index_list):
@@ -61,17 +90,17 @@ class three_sigma():
     def __init__(self):
         pass
 
-    def three_sigma_(self, SLdata_list):
+    def three_sigma_(self, SLdata_list, SLdata_mean, SLdata_std):
         # print(len(SLdata_list))
-        if np.std(SLdata_list) > np.mean(SLdata_list)/10:
+        if SLdata_std > SLdata_mean/10:
             error_index = []
             for i in range(len(SLdata_list)):
-                if abs(SLdata_list[i] - np.mean(SLdata_list)) > 1.5 * np.std(SLdata_list):
+                if abs(SLdata_list[i] - SLdata_mean) > 1.5 * SLdata_std:
                     error_index.append(i)
         else:
             error_index = []
             for i in range(len(SLdata_list)):
-                if abs(SLdata_list[i] - np.mean(SLdata_list)) > 3 * np.std(SLdata_list):
+                if abs(SLdata_list[i] - SLdata_mean) > 3 * SLdata_std:
                     error_index.append(i)
 
         return error_index
@@ -100,7 +129,7 @@ def return_lrweights(func):
 class iostation_forest():
     @return_index
     def ioslation_forest_train(self, SLdata_list):
-        isof = IsolationForest(n_estimators=50, max_samples='auto', contamination=float(0.005),max_features=1.0)
+        isof = IsolationForest(n_estimators=100, max_samples='auto', contamination=float(0.05),max_features=1.0)
         isof.fit(np.array(SLdata_list).reshape(-1, 1))
         SLdata_label = isof.predict(np.array(SLdata_list).reshape(-1, 1))
         return SLdata_label

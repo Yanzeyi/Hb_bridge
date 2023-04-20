@@ -6,6 +6,121 @@ from sklearn import svm
 from math import ceil, floor
 from outlier_dict import outlier_dict
 import datetime
+from scipy.interpolate import interp1d
+
+
+
+def detect_st_threshold(SLdata_list, sensor_id):
+    error_index_list = []
+    upper_limit = limit_dict[sensor_id][1]
+    lower_limit = limit_dict[sensor_id][0]
+    for i in range(len(SLdata_list)):
+        if SLdata_list[i] > upper_limit or SLdata_list[i] < lower_limit:
+            error_index_list.append(i)
+    return error_index_list
+
+
+def fill_point_B_spline(SLdata_list, error_index_list):
+    new_list = []
+    num_list, SLdata_list_new = throw_outlier(SLdata_list, error_index_list)
+    fx = interp1d(num_list, SLdata_list_new, kind='cubic', fill_value="extrapolate") 
+    # print(num_list)
+    # xInterp = np.linspace(0,len(SLdata_list) - 1,(len(SLdata_list) - 1) * 100)
+    # yInterp = fx(xInterp)
+    # print(num_list[-1])
+    # print(num_list)
+    for i in range(len(SLdata_list)):
+        if i in error_index_list:
+            if i >= num_list[0] and i <= num_list[-1]:
+                # print(i, fx(i))
+                new_list.append(fx(i))
+            else:
+                new_list.append(3186)
+        else:
+            new_list.append(SLdata_list[i])
+    return new_list
+
+
+
+def throw_outlier(SLdata_list, error_index_list):
+    new_SLdata_list = []
+    num_LIST = []
+    for i in range(len(SLdata_list)):
+        if i in error_index_list:   pass
+        else:   
+            num_LIST.append(i)
+            new_SLdata_list.append(SLdata_list[i])
+    return num_LIST, new_SLdata_list
+
+
+def detect_sb_2order(SLdata_list, num):
+    error_index_list = []
+    for i in range(num):
+        diff_l = peak_find(SLdata_list, i * 100 - 1, 0)
+        diff_r = peak_find(SLdata_list, i * 100 - 1, 1)
+        if diff_l != None and diff_r != None:
+            if diff_l * diff_r < 0 and abs(diff_r * diff_r) > 400:
+                error_index_list.append(i * 100 - 1)
+    return error_index_list
+
+
+def peak_find(SLdata_list, point, direction):
+    close_point = -1 if direction == 0 else 1
+    cnt = -2 if direction == 0 else 2
+    if point + close_point <= len(SLdata_list) - 1 and point + close_point >= 0:
+        diff = SLdata_list[point + close_point] - SLdata_list[point]
+        while(1):
+            if point + cnt <= len(SLdata_list) - 1 and point + cnt >= 0:
+                temp = SLdata_list[point + cnt] - SLdata_list[point + cnt - close_point]
+                cnt += close_point
+                if diff * temp > 0:
+                    diff += temp
+                else:
+                    break
+            else:
+                break
+        return diff
+    return None
+
+
+def detect_2n(SLdata_list):
+    error_index = []
+    for i in range(len(SLdata_list)):
+        if i == 0 or i == len(SLdata_list) - 1: pass
+        else:
+            if SLdata_list[i + 1] < -7 and SLdata_list[i - 1] > 7: 
+                error_index.append(i)
+            if SLdata_list[i - 1] > 7 and SLdata_list[i - 1] < -7:
+                error_index.append(i)
+    return error_index
+
+
+def one_order(SLdata_list):
+    new_list = []
+    for i in range(len(SLdata_list) - 3):
+        # new_list.append(SLdata_list[i + 1] - SLdata_list[i])
+        s1 = SLdata_list[i + 1] - SLdata_list[i]
+        s2 = SLdata_list[i + 2] - SLdata_list[i]
+        s3 = SLdata_list[i + 3] - SLdata_list[i]
+        if s1 > 0 and s2 - s1 > 0 and s3 - s2 > 0:   new_list.append(max(s1, s2, s3))
+        elif s1 < 0 and s2 - s1 < 0 and s3 - s2< 0: new_list.append(min(s1, s2, s3))
+        else: new_list.append(s1)
+
+    return new_list
+
+
+# def one_order_2s(SLdata_list):
+#     new_list = []
+#     for i in range(len(SLdata_list) - 2):
+#         new_list.append(SLdata_list[i + 2] - SLdata_list[i])
+#     return new_list
+
+
+def twice_order(SLdata_list):
+    new_list = one_order(SLdata_list)
+    newnew_list = []
+    newnew_list = one_order(new_list)
+    return newnew_list
 
 
 class detect_error(object):
@@ -39,12 +154,22 @@ def fill_point(data_list, error_index_list):
     new_list = []
     for data in data_list:
         if data_list.index(data) in error_index_list:
+            new_list.append(4605)
             if data_list.index(data) == 0:
                 new_list.append(data_list[1])
             elif data_list.index(data) == len(data_list) - 1:
                 new_list.append(data_list[len(data_list) - 2])
-            else:
+            elif data_list.index(data) - 1 and data_list.index(data) + 1 not in error_index_list:
                 new_list.append((data_list[data_list.index(data) - 1] + data_list[data_list.index(data) + 1])/2)
+            else:
+                # new_list.append(4500)
+                cnt = 1
+                while(1):
+                    if data_list.index(data) - 1 - cnt not in error_index_list:
+                        new_list.append((data_list[data_list.index(data) - 1 - cnt]))
+                        break
+                    else:
+                        cnt += 1
         else:
             new_list.append(data)
     return new_list
@@ -85,25 +210,49 @@ class k_means():
                 if data_labels[i] == error_label: error_index.append(i)
             return error_index
 
+limit_dict = {'SLS01': [5600, 6000], 'SLS02': [3450, 3700], 'SLS03': [3000, 3400], 'SLS04': [2850, 3300], 'SLS05': [2750, 3000], 'SLS06': [2800, 3200], 'SLS07': [3400, 3800], 'SLS08': [5600, 6000], 'SLS09': [6930, 6930], 'SLS10': [4100, 4400], 'SLS11': [3650, 3900], 'SLS12': [3350, 3650], 'SLS13': [3350, 3650], 'SLS14': [3500, 3900], 'SLS15': [4000, 4400], 'SLS16': [6500, 7000], 'SLS17': [6300, 6700], 'SLS18': [3650, 3950], 'SLS19': [3200, 3500], 'SLS20': [3100, 3500], 'SLS21': [3250, 3550], 'SLS22': [3300, 3600], 'SLS23': [3850, 4100], 'SLS24': [6050, 6500], 'SLX01': [5600, 6000], 'SLX02': [3400, 3700], 'SLX03': [3000, 3400], 'SLX04': [2900, 3300], 'SLX05': [2750, 3050], 'SLX06': [2850, 3150], 'SLX07': [3400, 3800], 'SLX08': [5600, 6000], 'SLX09': [6700, 7200], 'SLX10': [4100, 4400], 'SLX11': [3600, 3900], 'SLX12': [3300, 3700], 'SLX13': [3300, 3700], 'SLX14': [3500, 3900], 'SLX15': [4000, 4400], 'SLX16': [6500, 7000], 'SLX17': [6300, 6700], 'SLX18': [3650, 3900], 'SLX19': [3200, 3500], 'SLX20': [3200, 3450], 'SLX21': [3250, 3550], 'SLX22': [3300, 3600], 'SLX23': [3800, 4100], 'SLX24': [6100, 6600]}
 
-class three_sigma():
+def set_scale(func):
+    def inner(*args, **kwargs):
+        upper_limit = limit_dict[args[4]][1]
+        lower_limit = limit_dict[args[4]][0]
+        error_index_list = func(*args, **kwargs)
+        new_error = []
+        # print("测试前：")
+        # for error_index in error_index_list:
+            # print(args[1][error_index])
+        for error_index in error_index_list:
+            # print("将要测试")
+            # print(args[1][error_index])
+            if args[1][error_index] >= lower_limit and \
+               args[1][error_index] <= upper_limit:
+                # print(args[1][error_index])
+                pass
+            else: new_error.append(error_index)
+        return new_error
+    return inner
+
+
+class three_sigma(object):
     def __init__(self):
         pass
 
-    def three_sigma_(self, SLdata_list, SLdata_mean, SLdata_std):
+    @set_scale
+    def three_sigma_(self, SLdata_list, SLdata_mean, SLdata_std, sensor_id):
         # print(len(SLdata_list))
+        error_index = []
         if SLdata_std > SLdata_mean/10:
-            error_index = []
             for i in range(len(SLdata_list)):
                 if abs(SLdata_list[i] - SLdata_mean) > 1.5 * SLdata_std:
                     error_index.append(i)
         else:
-            error_index = []
             for i in range(len(SLdata_list)):
                 if abs(SLdata_list[i] - SLdata_mean) > 3 * SLdata_std:
                     error_index.append(i)
 
         return error_index
+    
+
     
 
 def return_index(func):
@@ -178,15 +327,6 @@ class svm_():
         # dl.detect_error_pic(SLdata_list, error_label)
 
 if __name__ == "__main__":
+    # a = [1, 4.5, 6, 2, 5, 7]
+    # print(peak_r(a, 4, 0))
     pass
-    # data_list = [13, 13.5, 13.8, 13.9, 14, 14.6, 14.8, 15, 15.2, 15.4]
-    # b = box_plot()
-    # b.box_plot_train(data_list)
-
-    # data_list = [1, 3, 5 ,6 ,7 ,8, 15]
-    # index_list = [0, 6]
-    # print(fill_point(data_list, index_list))
-
-    a = [1, 4, 5 ,6 ,7, 8, 9, 10]
-    b = [0, 4]
-    print(fill_point(a, b))

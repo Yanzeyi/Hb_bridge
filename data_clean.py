@@ -4,9 +4,13 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn import svm
 import numpy as np
-from error_detect import k_means, three_sigma, iostation_forest, box_plot, fill_point, svm_, return_index, detect_error
+from error_detect import k_means, three_sigma, iostation_forest, box_plot, fill_point, svm_, return_index, detect_error, detect_2n
+from error_detect import one_order, twice_order, detect_sb_2order, peak_find, throw_outlier, fill_point_B_spline, detect_st_threshold
 from sensor_id_list import SENSOR_ID_LIST
+from outlier_dict import outlier_dict
 # from sklearn.ensemble import IsolationForest
+from scipy.interpolate import interp1d
+from scipy.misc import derivative
 
 
 class ds_load():
@@ -72,6 +76,19 @@ class ds_load():
             SLMDATE_list = self.get_data_st_index(index_list, 0)
             self.SLData_dict[str(sensor_id)] = SLdata_list
             self.SLMdata_dict[str(sensor_id)] = SLMDATE_list
+
+
+    def get_one_day_index(self, sensor_id, day_id):
+        """
+        取出某传感器某一天的数据
+        """
+        one_day_index = []
+        for i in range(self.rows):
+            # print(type(self.ds.iloc[i, 0].day), type(self.ds.iloc[i, 2]))
+            if self.ds.iloc[i, 0].day == day_id and self.ds.iloc[i, 2] == sensor_id:
+                # print(self.ds.iloc[i, 0].day, self.ds.iloc[i, 2])
+                one_day_index.append(i)
+        return one_day_index
 
 
 class show_picture():
@@ -144,117 +161,155 @@ def get_year_SLdata(sensor_id):
     return SLS01data_list, SLSMdate_list
 
 
+def Z_score(SLdata_list):
+    new_list = []
+    if np.std(SLdata_list) != 0:
+        for data in SLdata_list:
+            new_list.append((data - np.mean(SLdata_list)) / np.std(SLdata_list))
+    else: new_list = eval("[" + ",".join("0" * len(SLdata_list)) + "]")
+    return new_list
+
+
+def mm(SLdata_list):
+    new_list = []
+    for data in SLdata_list:
+        new_list.append((data - min(SLdata_list)) / (max(SLdata_list) - min(SLdata_list)))
+    return new_list
+
+
+@return_index
+def Dbscan_train(SLdata_list):
+    if np.array(SLdata_list).ndim == 1:
+        db = DBSCAN(eps = 0.65, min_samples=25).fit(np.array(SLdata_list).reshape(-1, 1))
+    if np.array(SLdata_list).ndim == 2:
+        db = DBSCAN(eps = 0.10, min_samples=5).fit(np.array(SLdata_list))
+    return db.labels_
+    
+
+def generate_data(SLdata_list):
+    new_list = []
+    std_data_list = mm(SLdata_list)
+    x_list = mm(range(len(SLdata_list)))
+    for i in range(len(SLdata_list)):
+        tmp = [x_list[i], std_data_list[i]]
+        new_list.append(tmp)
+    return new_list, x_list, std_data_list
+
+
+
+
 if __name__ == "__main__":
     
   
-    # for i in range(1, 13):
- 
-    #     file_path =  r"D:\Jilin_university\Harbin_bridge_pro\原始数据-按月\原始数据-按月"
-    #     year_month = "2022-0" if i < 10 else "2022-"
-    #     file_path += "\\" + year_month + str(i) + ".csv"
-    #     dl = ds_load(file_path)
-    #     # dl = dl.read_csv(file_path, encoding='ANSI', parse_dates=['MDATE'], date_parser=lambda x : datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
-    #     dl.sort_by_time_order()
+#     # for i in range(1, 13):
+#     #     file_path =  r"D:\Jilin_university\Harbin_bridge_pro\原始数据-按月\原始数据-按月"
+#     #     year_month = "2022-0" if i < 10 else "2022-"
+#     #     file_path += "\\" + year_month + str(i) + ".csv"
+#     #     dl = ds_load(file_path)
+#     #     # dl = dl.read_csv(file_path, encoding='ANSI', parse_dates=['MDATE'], date_parser=lambda x : datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))
+#     #     dl.sort_by_time_order()
 
-    #     fg = plt.figure(figsize = (40, 50))
+#     #     fg = plt.figure(figsize = (40, 50))
 
-    #     for sensor_id in SENSOR_ID_LIST:
+#     #     for sensor_id in SENSOR_ID_LIST:
 
 
-    #         index_list = dl.get_SLdata_index(sensor_id) #查找传感器数据的索引
-    #         SLdata_list = dl.get_data_st_index(index_list, 11) #根据索引值得到数据
-    #         SLMdate_list = dl.get_data_st_index(index_list, 0)
-    #         # @return_index
-    #         # def Dbscan_train(SLdata_list):
-    #         #     db = DBSCAN(eps = 50, min_samples=7).fit(np.array(SLdata_list).reshape(-1, 1))
-    #         #     return db.labels_
+#     #         index_list = dl.get_SLdata_index(sensor_id) #查找传感器数据的索引
+#     #         SLdata_list = dl.get_data_st_index(index_list, 11) #根据索引值得到数据
+#     #         SLMdate_list = dl.get_data_st_index(index_list, 0)
 
-    #         def Z_score(SLdata_list):
-    #             new_list = []
-    #             if np.std(SLdata_list) != 0:
-    #                 for data in SLdata_list:
-    #                     new_list.append((data - np.mean(SLdata_list)) / np.std(SLdata_list))
-    #             else: new_list = eval("[" + ",".join("0" * len(SLdata_list)) + "]")
-    #             return new_list
+#     #         new_SLdata_list = Z_score(SLdata_list)
+#     #         error_index_list = Dbscan_train(new_SLdata_list)
+#     #         # gv = get_value()
+#     #         # ts = three_sigma()
+#     #         # error_index_list = ts.three_sigma_(SLdata_list, np.mean(SLdata_list), np.std(SLdata_list))
+#     #         # new_mean, new_std = gv.get_mean(SLdata_list, error_index_list)
+#     #         # error_index_list = ts.three_sigma_(SLdata_list, new_mean, new_std)
 
-    #         # def mm(SLdata_list):
-    #         #     new_list = []
-    #         #     for data in SLdata_list:
-    #         #         new_list.append((data - min(SLdata_list)) / (max(SLdata_list) - min(SLdata_list)))
-    #         #     return new_list
-
-    #         @return_index
-    #         def Dbscan_train(SLdata_list):
-    #             db = DBSCAN(eps = 0.65, min_samples=25).fit(np.array(SLdata_list).reshape(-1, 1))
-    #             return db.labels_
-
-    #         new_SLdata_list = Z_score(SLdata_list)
-    #         error_index_list = Dbscan_train(new_SLdata_list)
-    #         # gv = get_value()
-    #         # ts = three_sigma()
-    #         # error_index_list = ts.three_sigma_(SLdata_list, np.mean(SLdata_list), np.std(SLdata_list))
-    #         # new_mean, new_std = gv.get_mean(SLdata_list, error_index_list)
-    #         # error_index_list = ts.three_sigma_(SLdata_list, new_mean, new_std)
-
-    #         ax = fg.add_subplot(24,2,SENSOR_ID_LIST.index(sensor_id) + 1)
-    #         ax.plot(SLMdate_list, SLdata_list)
-    #         ax.set_xlabel("Date")
-    #         ax.set_ylabel("SLDate")
-    #         ax.set_title(sensor_id)
-    #         for error_index in error_index_list:
-    #             ax.scatter(SLMdate_list[error_index], SLdata_list[error_index], c = "r")
+#     #         ax = fg.add_subplot(24,2,SENSOR_ID_LIST.index(sensor_id) + 1)
+#     #         ax.plot(SLMdate_list, SLdata_list)
+#     #         ax.set_xlabel("Date")
+#     #         ax.set_ylabel("SLDate")
+#     #         ax.set_title(sensor_id)
+#     #         for error_index in error_index_list:
+#     #             ax.scatter(SLMdate_list[error_index], SLdata_list[error_index], c = "r")
         
-    #     fg.tight_layout()
-    #     fg.savefig(str(i) + '.jpg')
-    sensor_id = "SLX22"
+#     #     fg.tight_layout()
+#     #     fg.savefig(str(i) + '.jpg')
+
+
+    sensor_id = "SLS20"
+    from matplotlib.font_manager import FontProperties
+    plt.rcParams['font.sans-serif'] = ['Microsoft YaHei']
+    font = FontProperties(fname=r"c:\windows\fonts\simsun.ttc", size=15)
     file_path =  r"D:\Jilin_university\Harbin_bridge_pro\原始数据-按月\原始数据-按月"
-    file_path += "\\" + "2022-0" + str(7) + ".csv"
+    file_path += "\\" + "2022-0" + str(2) + ".csv"
     dl = ds_load(file_path)
     dl.sort_by_time_order()
+    # for sensor_id in SENSOR_ID_LIST:
     index_list = dl.get_SLdata_index(sensor_id) #查找传感器数据的索引
     SLdata_list = dl.get_data_st_index(index_list, 11) #根据索引值得到数据
     SLMdate_list = dl.get_data_st_index(index_list, 0)
-
-    km = k_means()
-    error_index_list = km.k_means_train(2, SLdata_list)
-
-    def Z_score(SLdata_list):
-        new_list = []
-        if np.std(SLdata_list) != 0:
-            for data in SLdata_list:
-                new_list.append((data - np.mean(SLdata_list)) / np.std(SLdata_list))
-        else: new_list = eval("[" + ",".join("0" * len(SLdata_list)) + "]")
-        return new_list
-
-# def mm(SLdata_list):
-#     new_list = []
-#     for data in SLdata_list:
-#         new_list.append((data - min(SLdata_list)) / (max(SLdata_list) - min(SLdata_list)))
-#     return new_list
-
-    @return_index
-    def Dbscan_train(SLdata_list):
-        db = DBSCAN(eps = 0.65, min_samples=25).fit(np.array(SLdata_list).reshape(-1, 1))
-        return db.labels_
-    
-    new_SLdata_list = Z_score(SLdata_list)
-    error_index_list = Dbscan_train(new_SLdata_list)
-    # gv = get_value()
+    # new_list = Z_score(SLdata_list)
     # ts = three_sigma()
-    # error_index_list = ts.three_sigma_(SLdata_list, np.mean(SLdata_list), np.std(SLdata_list))
-    # new_mean, new_std = gv.get_mean(SLdata_list, error_index_list)
-    # error_index_list = ts.three_sigma_(SLdata_list, new_mean, new_std)
-    # bp = box_plot()
-    # iosf = iostation_forest()
-    # error_index_list = bp.box_plot_train(SLdata_list)
-    # error_index_list = iosf.ioslation_forest_train(SLdata_list)
+    # error_list = ts.three_sigma_(SLdata_list, np.mean(SLdata_list), np.std(SLdata_list), sensor_id)
+    # gv = get_value()
+    # new_mean, new_std = gv.get_mean(SLdata_list, error_list)
+    # print(new_mean, new_std)
+    # new_error_list = ts.three_sigma_(SLdata_list, new_mean, new_std, sensor_id)
+    # error_data_date = []
+    # error_data = []
+    error_index_list = detect_st_threshold(SLdata_list, sensor_id)
+    # num_list, SLdata_list_new = throw_outlier(SLdata_list, error_index_list)
+    # print(num_list)
+    new_SLdata_list = fill_point_B_spline(SLdata_list, error_index_list)
+    # print(num_) for i in range(len)
+    fg = plt.figure(figsize = (20, 5))
+    ax = fg.add_subplot(1, 1, 1)
+    ax.plot(SLMdate_list, new_SLdata_list, label = "索力曲线")
+    # print(len(SLMdate_list), len(new_SLdata_list))
+    # for error_index in error_index_list:
+    #     error_data_date.append(SLMdate_list[error_index])
+    #     error_data.append(SLdata_list[error_index])
+    # ax.scatter(error_data_date, error_data, c = "r", label = "异常点")
+    # ax.plot(SLMdate_list, new_SLdata_list, c = "r", label = "异常点")
 
-    fg = plt.figure(figsize=(30, 10))
-    ax = fg.add_subplot(1,1,1)
-    ax.plot(SLMdate_list, SLdata_list)
     ax.set_xlabel("Date")
-    ax.set_ylabel("SLDate")
-    ax.set_title(sensor_id)
-    for error_index in error_index_list:
-        ax.scatter(SLMdate_list[error_index], SLdata_list[error_index], c = "r")
-    fg.savefig("Dbscan" + '.jpg')
+    ax.set_ylabel("SLData")
+    ax.set_title(sensor_id + "填补图")
+    ax.legend(loc='upper left')
+    # print(sensor_id)
+    # fg.show()
+    # plt.show()
+    fg.savefig("2月份阈值判定填补图" + "\\"+"2_" + sensor_id + '.jpg')
+
+
+
+
+    """ DBSCAN 检测(算上时间因素)"""
+    # data_list, x_list, std_data_list = generate_data(SLdata_list)
+    # error_index_list = Dbscan_train(data_list)
+    # sp = show_picture()
+    # sp.detect_error_pic(SLdata_list, error_index_list)
+    # plt.plot(x_list, std_data_list)
+    # plt.show()
+    
+""" 二阶导结构异常
+    fx = interp1d(range(len(SLdata_list)), SLdata_list, kind='cubic') 
+    xInterp = np.linspace(0,len(SLdata_list) - 1,(len(SLdata_list) - 1) * 100) # 指定需插值的数据点集 xInterp
+    xInterp_short = np.linspace(0,len(SLdata_list) - 3,(len(SLdata_list) - 3) * 100)
+    yInterp = fx(xInterp)  # 调用插值函数 fx，计算 xInterp 的函数值
+    yInterp_short = fx(xInterp_short)
+    twice_order_list = []
+    for x in xInterp_short:
+        if x == 0: twice_order_list.append((SLdata_list[2] - SLdata_list[1]) - (SLdata_list[1] - SLdata_list[0]))
+        else:
+            twice_order_list.append(derivative(fx, x , dx = 0.001, n = 2))
+    # error_list = detect_2n(twice_order_list)
+    error_list = detect_sb_2order(twice_order_list, len(SLdata_list) - 3)
+    # error_list = detect_sb_2order(yInterp, len(SLdata_list) - 1)
+    # plt.scatter(range(len(SLdata_list)), SLdata_list)
+    # plt.show()
+
+    sp = show_picture()
+    sp.detect_error_pic(yInterp, error_list)"""

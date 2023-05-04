@@ -154,12 +154,12 @@ def fill_point(data_list, error_index_list):
     new_list = []
     for data in data_list:
         if data_list.index(data) in error_index_list:
-            new_list.append(4605)
+            # new_list.append(4605)
             if data_list.index(data) == 0:
                 new_list.append(data_list[1])
             elif data_list.index(data) == len(data_list) - 1:
                 new_list.append(data_list[len(data_list) - 2])
-            elif data_list.index(data) - 1 and data_list.index(data) + 1 not in error_index_list:
+            elif data_list.index(data) - 1 not in error_index_list and data_list.index(data) + 1 not in error_index_list:
                 new_list.append((data_list[data_list.index(data) - 1] + data_list[data_list.index(data) + 1])/2)
             else:
                 # new_list.append(4500)
@@ -237,7 +237,7 @@ class three_sigma(object):
     def __init__(self):
         pass
 
-    @set_scale
+    # @set_scale
     def three_sigma_(self, SLdata_list, SLdata_mean, SLdata_std, sensor_id):
         # print(len(SLdata_list))
         error_index = []
